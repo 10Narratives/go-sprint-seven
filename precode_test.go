@@ -3,143 +3,72 @@ package main
 import (
 	"net/http"
 	"net/http/httptest"
-	"net/url"
 	"strings"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 )
 
 func TestMainHandlerWhenOK(t *testing.T) {
-	u, err := url.Parse("/cafe")
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	query := u.Query()
-	query.Add("city", "moscow")
-	query.Add("count", "2")
-	u.RawQuery = query.Encode()
-
-	request := httptest.NewRequest(http.MethodGet, u.String(), nil)
+	request := httptest.NewRequest(http.MethodGet, "/cafe?count=2&city=moscow", nil)
 
 	responseRecorder := httptest.NewRecorder()
 	handler := http.HandlerFunc(mainHandle)
 	handler.ServeHTTP(responseRecorder, request)
 
-	if status := responseRecorder.Code; status != http.StatusOK {
-		t.Errorf("expected status code: %d, got %d", http.StatusOK, status)
-	}
-
-	expectedBody := ``
-	if responseRecorder.Body.String() == expectedBody {
-		t.Errorf("expected not empty response body")
-	}
+	assert.Equal(t, http.StatusOK, responseRecorder.Code)
+	assert.NotEqual(t, 0, responseRecorder.Body.Len())
 }
 
 func TestMainHandleWhenCountMissing(t *testing.T) {
-	u, err := url.Parse("/cafe")
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	query := u.Query()
-	query.Add("city", "moscow")
-	u.RawQuery = query.Encode()
-
-	request := httptest.NewRequest(http.MethodGet, u.String(), nil)
+	request := httptest.NewRequest(http.MethodGet, "/cafe?city=moscow", nil)
 
 	responseRecorder := httptest.NewRecorder()
 	handler := http.HandlerFunc(mainHandle)
 	handler.ServeHTTP(responseRecorder, request)
 
-	if status := responseRecorder.Code; status != http.StatusBadRequest {
-		t.Errorf("expected status code: %d, got %d", http.StatusBadRequest, status)
-	}
+	assert.Equal(t, http.StatusBadRequest, responseRecorder.Code)
 
 	expectedBody := `count missing`
-	if gottenBody := responseRecorder.Body.String(); gottenBody != expectedBody {
-		t.Errorf("expected body: %s, got %s", expectedBody, gottenBody)
-	}
+	assert.Equal(t, expectedBody, responseRecorder.Body.String())
 }
 
 func TestMainHandleWhenWrongCount(t *testing.T) {
-	u, err := url.Parse("/cafe")
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	query := u.Query()
-	query.Add("city", "moscow")
-	query.Add("count", "count")
-	u.RawQuery = query.Encode()
-
-	request := httptest.NewRequest(http.MethodGet, u.String(), nil)
+	request := httptest.NewRequest(http.MethodGet, "/cafe?count=count&city=moscow", nil)
 
 	responseRecorder := httptest.NewRecorder()
 	handler := http.HandlerFunc(mainHandle)
 	handler.ServeHTTP(responseRecorder, request)
 
-	if status := responseRecorder.Code; status != http.StatusBadRequest {
-		t.Errorf("expected status code: %d, got %d", http.StatusBadRequest, status)
-	}
+	assert.Equal(t, http.StatusBadRequest, responseRecorder.Code)
 
 	expectedBody := `wrong count value`
-	if gottenBody := responseRecorder.Body.String(); gottenBody != expectedBody {
-		t.Errorf("expected body: %s, got %s", expectedBody, gottenBody)
-	}
+	assert.Equal(t, expectedBody, responseRecorder.Body.String())
 }
 
 func TestMainHandleWhenNotSupportedCity(t *testing.T) {
-	u, err := url.Parse("/cafe")
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	query := u.Query()
-	query.Add("city", "london")
-	query.Add("count", "2")
-	u.RawQuery = query.Encode()
-
-	request := httptest.NewRequest(http.MethodGet, u.String(), nil)
+	request := httptest.NewRequest(http.MethodGet, "/cafe?count=2&city=london", nil)
 
 	responseRecorder := httptest.NewRecorder()
 	handler := http.HandlerFunc(mainHandle)
 	handler.ServeHTTP(responseRecorder, request)
 
-	if status := responseRecorder.Code; status != http.StatusBadRequest {
-		t.Errorf("expected status code: %d, got %d", http.StatusBadRequest, status)
-	}
+	assert.Equal(t, http.StatusBadRequest, responseRecorder.Code)
 
 	expectedBody := `wrong city value`
-	if gottenBody := responseRecorder.Body.String(); gottenBody != expectedBody {
-		t.Errorf("expected body: %s, got %s", expectedBody, gottenBody)
-	}
+	assert.Equal(t, expectedBody, responseRecorder.Body.String())
 }
 
 func TestMainHandleWhenCountOverflow(t *testing.T) {
-	u, err := url.Parse("/cafe")
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	query := u.Query()
-	query.Add("city", "moscow")
-	query.Add("count", "5")
-	u.RawQuery = query.Encode()
-
-	request := httptest.NewRequest(http.MethodGet, u.String(), nil)
+	request := httptest.NewRequest(http.MethodGet, "/cafe?count=10&city=moscow", nil)
 
 	responseRecorder := httptest.NewRecorder()
 	handler := http.HandlerFunc(mainHandle)
 	handler.ServeHTTP(responseRecorder, request)
 
-	if status := responseRecorder.Code; status != http.StatusOK {
-		t.Errorf("expected status code: %d, got %d", http.StatusOK, status)
-	}
+	assert.Equal(t, http.StatusOK, responseRecorder.Code)
 
 	totalCount := 4
 	slicedBody := strings.Split(responseRecorder.Body.String(), ",")
-	if totalCount != len(slicedBody) {
-		t.Errorf("expected count of cities: %d, got %d", totalCount, len(slicedBody))
-	}
-
+	assert.Len(t, slicedBody, totalCount)
 }
